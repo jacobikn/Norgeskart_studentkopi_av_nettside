@@ -1,0 +1,514 @@
+angular.module('mainApp').service('mainAppService', [
+  '$http',
+  function () {
+    var url = 'https://arkiv.norgeskart.no/';
+    var urlOpenWps = 'https://wps.geonorge.no/skwms1/';
+    var urlOpenWms = 'https://wms.geonorge.no/skwms1/';
+    var urlGeonorge = 'https://ws.geonorge.no/';
+    var urlNorgeskartApi = 'https://api.norgeskart.no/';
+    var urlNodplakat = 'https://nodplakat.norgeskart.no/';
+    var urlSeEiendom = 'https://seeiendom.kartverket.no/';
+    var urlFaktaark = 'https://stadnamn.kartverket.no/fakta/';
+    var urlHavnivaa = 'http://api.sehavniva.no/';
+    var urlAdresseSok = 'https://ws.geonorge.no/adresser/v1/sok';
+    var urlAdressePunktsok = 'https://ws.geonorge.no/adresser/v1/punktsok';
+    var ulrKommuneSearch = 'https://ws.geonorge.no/kommunereform/v1/endringer/?sok=';
+    this.uploadGpxFileService = function () {
+      return urlNorgeskartApi + 'upload-gpx.py';
+    };
+    this.generateElevationChartServiceUrl = function (gpxFile) {
+      var serviceUrl = urlOpenWps + 'wps.elevation2?request=Execute&service=WPS&version=1.0.0&identifier=elevationChart&dataInputs=';
+      return serviceUrl + 'gpx=@xlink:href=' + gpxFile;
+    };
+    this.generateMapLinkServiceUrl = function (config) {
+      var service = encodeURIComponent(config.service);
+      var request = encodeURIComponent(config.request);
+      var crs = encodeURIComponent(config.CRS);
+      var format = encodeURIComponent(config.FORMAT);
+      var bgcolor = encodeURIComponent(config.BGCOLOR);
+      var transparent = encodeURIComponent(config.TRANSPARENT);
+      var layers = encodeURIComponent(config.LAYERS);
+      var version = encodeURIComponent(config.VERSION);
+      var width = encodeURIComponent(config.WIDTH);
+      var height = encodeURIComponent(config.HEIGHT);
+      var bbox = encodeURIComponent(config.BBOX);
+      return urlOpenWms + 'wms.topo?service=' + service + '&request=' + request + '&CRS=' + crs + '&FORMAT=' + format + '&BGCOLOR=' + bgcolor + '&TRANSPARENT=' + transparent + '&LAYERS=' + layers + '&VERSION=' + version + '&WIDTH=' + width + '&HEIGHT=' + height + '&BBOX=' + bbox;
+    };
+    this.generateEmergencyPosterServiceUrl = function (config) {
+      var map = encodeURIComponent(config.map);
+      return urlNodplakat + 'fop2/fop?locationName=' + config.locationName + '&position1=' + config.position1 + '&position2=' + config.position2 + '&street=' + config.street + '&place=' + config.place + '&matrikkel=' + config.matrikkel + '&utm=' + config.utm + '&posDez=' + config.posDez + '&map=' + map;
+    };
+    this.generateSearchMatrikkelVegUrl = function (query) {
+      return urlNorgeskartApi + 'v1/matrikkel/veg/' + encodeURIComponent(query);
+    };
+    this.generateSearchMatrikkelAdresseUrl = function (query) {
+      query = typeof query === 'string' ? query : '';
+      query = query.indexOf(',') !== -1 ? query.replace(',', ' ') : query;
+      return urlAdresseSok + '?sok=' + encodeURIComponent(query) + '&treffPerSide=10';
+    };
+    this.kommunesearch = function (query) {
+      return ulrKommuneSearch + query;
+    };
+    this.generateSearchStedsnavnUrl = function (query, side, antall) {
+      if (query) {
+        var testquery = query.split(',');
+        if (testquery.length >= 2) {
+          testquery[0] = testquery[0].indexOf('*') !== -1 ? testquery[0] : testquery[0] + '*';
+          testquery[1] = testquery[1].indexOf('*') !== -1 ? testquery[1].trim() : testquery[1].trim() + '*';
+          query = testquery[0] + '&kommunenavn=' + testquery[1];
+          // + '&fylkesnavn=' + testquery[2].trim() ;
+          return ' https://ws.geonorge.no/stedsnavn/v1/navn?sok=' + query + '&treffPerSide=' + antall + '&side=' + side;
+        }
+      }
+      query = query ? query.indexOf('*') !== -1 ? query : query + '*' : '';
+      return 'https://ws.geonorge.no/stedsnavn/v1/navn?sok=' + query + '&treffPerSide=' + antall + '&side=' + side;
+    };
+    this.generateElevationPointUrl = function (lat, lon, epsgNumber) {
+      var geometry = encodeURIComponent('{"x":' + lon + ',"y":' + lat + ',"spatialReference":{"wkid":' + epsgNumber + '}}');
+      return 'https://hoydedata.no/arcgis/rest/services/NHM_DTM_TOPOBATHY_25833/ImageServer/getSamples?f=json&geometryType=esriGeometryPoint&geometry=' + geometry;
+    };
+    this.generatStedsnavnPunktsok = function (lat, lon, epsgNumber, side) {
+      if (!side) {
+        side = 1;
+      }
+      return 'https://ws.geonorge.no/stedsnavn/v1/punkt?nord=' + lat + '&ost=' + lon + '&treffPerSide=35&koordsys=25833&radius=150' + '&side=' + side;
+    };
+    this.generatStedsnavnPunktsokNodplakat = function (lat, lon, epsgNumber, side) {
+      if (!side) {
+        side = 1;
+      }
+      return 'https://ws.geonorge.no/stedsnavn/v1/punkt?nord=' + lat + '&ost=' + lon + '&treffPerSide=35&koordsys=25833&radius=1000' + '&side=' + side;
+    };
+    this.generateMatrikkelInfoUrl = function (minx, miny, maxx, maxy) {
+      return urlNorgeskartApi + 'v1/teiger/bbox/' + minx + ',' + miny + ',' + maxx + ',' + maxy;
+    };
+    this.generateAdresseSokUrl = function (query) {
+      query = typeof query === 'string' ? query : '';
+      query = query.indexOf(',') !== -1 ? query.replace(',', '*') : query + '*';
+      return urlAdresseSok + '?sok=' + encodeURIComponent(query) + '&treffPerSide=1000';
+    };
+    this.generateAdressePunktsokUrl = function (radius, lat, lon) {
+      return urlAdressePunktsok + '?radius=' + radius + '&lat=' + lat + '&lon=' + lon + '&treffPerSide=10';
+    };
+    this.generateSeEiendomUrl = function (knr, gnr, bnr, fnr, snr) {
+      return urlSeEiendom + 'eiendom/' + knr + '/' + gnr + '/' + bnr + '/' + fnr + '/' + snr;
+    };
+    this.generateFaktaarkUrl = function (stedsnummer) {
+      return urlFaktaark + stedsnummer;
+    };
+    this.generateKoordTransUrl = function (ost, nord, resSosiKoordSys, sosiKoordSys) {
+      resSosiKoordSys = resSosiKoordSys || 84;
+      sosiKoordSys = sosiKoordSys || 84;
+      var fra = this.sosiCodes.find(function (code) {
+          return code.SOSI == sosiKoordSys;
+        });
+      var til = this.sosiCodes.find(function (code) {
+          return code.SOSI == resSosiKoordSys;
+        });
+      return urlGeonorge + 'transformering/v1/transformer?x=' + ost + '&y=' + nord + '&fra=' + fra.EPSG + '&til=' + til.EPSG;
+    };
+    this.generateSeHavnivaaUrl = function (lat, lon) {
+      return urlHavnivaa + 'tideapi.php?lat=' + lat + '&lon=' + lon + '&lang=nb&year=' + new Date().getFullYear() + '&place=&tide_request=tidetable';
+    };
+    this.generateLagTurkartUrl = function () {
+      return urlNorgeskartApi + 'nkprint/turkart2';
+    };
+    this.generateEmergencyPosterPointUrl = function (lat, lon) {
+      return urlNorgeskartApi + 'emergencyPoster/' + lon + '/' + lat;
+    };
+    /*
+      this.generateSearchStedsnavnBboxUrl = function (minx, miny, maxx, maxy) {
+        return urlGeonorge + 'SKWS3Index/ssr/sok?&nordLL=' + miny + '&ostLL=' + minx + '&nordUR=' + maxy + '&ostUR=' + maxx + '&epsgKode=32633';
+      };
+*/
+    this.generateEmergencyPosterPreviewImageUrl = function (minx, miny, maxx, maxy) {
+      return urlOpenWms + 'wms.topo?service=WMS&request=GetMap&CRS=EPSG:32633&FORMAT=image%2Fjpeg&BGCOLOR=0xFFFFFF&TRANSPARENT=false&LAYERS=topo&VERSION=1.3.0&WIDTH=' + $(window).width() + '&HEIGHT=' + $(window).height() + '&BBOX=' + minx + ',' + miny + ',' + maxx + ',' + maxy;
+    };
+    this.generateGeoJSONUrl = function (hash, save) {
+      var params = {};
+      params.hash = hash;
+      if (save) {
+        params.save = true;
+      }
+      return urlNorgeskartApi + 'get-json.py?' + $.param(params);
+    };
+    this.generateGeoJSONSaveUrl = function () {
+      return urlNorgeskartApi + 'upload-json.py';
+    };
+    this.generateSearchMatrikkelNummerUrl = function (query) {
+      return urlNorgeskartApi + 'v1/matrikkel/eie/' + query;
+    };
+    this._constructMarkingFilter = function (property) {
+      return property.kommunenr + '-' + property.gardsnr + '-' + property.bruksnr + '-' + property.festenr + '-' + property.seksjonsnr;
+    };
+    this.generateMatrikkelWfsFilterUrl = function (property) {
+      return urlNorgeskartApi + 'v1/teiger/' + this._constructMarkingFilter(property) + '/';
+    };
+    this.generateEiendomAddress = function (kommunenr, gardsnr, bruksnr, festnr, sectionsnr) {
+      var baseUrl = urlNorgeskartApi + 'v1/matrikkel/eiendom/';
+      if (festnr !== '0') {
+        if (sectionsnr === '0') {
+          baseUrl += kommunenr + '-' + gardsnr + '/' + bruksnr + '/' + festnr;
+        } else {
+          baseUrl += kommunenr + '-' + gardsnr + '/' + bruksnr + '/' + festnr + '/' + sectionsnr;
+        }
+      } else {
+        baseUrl += kommunenr + '-' + gardsnr + '/' + bruksnr;
+      }
+      return baseUrl + '&KILDE:Eiendom KOMMUNENR:' + kommunenr + ' GARDSNR:' + gardsnr + ' BRUKSNR:' + bruksnr + ' SEKSJONSNR:' + sectionsnr + ' FESTENR:' + festnr;
+    };
+    this.generateFaqUrl = function (code) {
+      return urlNorgeskartApi + 'faq/?code=' + code;
+    };
+    this.messagesUrl = function (code) {
+      return 'https://raw.githubusercontent.com/kartverket/nk3config/refs/heads/master/messages/info.' + code;
+    };
+    /*
+       // No CORS
+       this.generateSeHavnivaaUrl = function (lat, lon) {
+       return urlHavnivaa + "tideapi.php?lat=" + lat + "&lon=" + lon + "&refcode=cd&place=&lang=nb&file=&tide_request=locationlevels";
+
+       };                this.generateSearchEiendomUrl = function (query) {
+       return "http://eiendom.statkart.no/Search.ashx?filter=KILDE:sted,matreiendom,SITEURLKEY:httpwwwseeiendomno,LESEGRUPPER:guests&term=" + query;
+       };
+       */
+    this.sosiCodes = [
+      {
+        ESRI: null,
+        EPSG: 4258,
+        SOSI: 84,
+        name: 'EU89 - Geografisk, grader (Lat/Lon)',
+        viewable: false,
+        key: 'EU89_Lat_Lon',
+        type: 'standard',
+        bbox: {
+          MinX: 3.844925191,
+          MaxX: 31.95907717,
+          MinY: 57.69458922,
+          MaxY: 71.45477563
+        }
+      },
+      {
+        ESRI: 25831,
+        EPSG: 25831,
+        SOSI: 21,
+        name: 'EU89, UTM-sone 31',
+        viewable: true,
+        key: 'EU89_UTM_31',
+        type: 'standard',
+        bbox: {}
+      },
+      {
+        ESRI: 25832,
+        EPSG: 25832,
+        SOSI: 22,
+        name: 'EU89, UTM-sone 32',
+        viewable: true,
+        key: 'EU89_UTM_32',
+        type: 'standard',
+        bbox: {
+          MinX: 229614.1053,
+          MaxX: 751898.5673,
+          MinY: 6401682.026,
+          MaxY: 7231445.376
+        }
+      },
+      {
+        ESRI: 25833,
+        EPSG: 25833,
+        SOSI: 23,
+        name: 'EU89, UTM-sone 33',
+        viewable: true,
+        key: 'EU89_UTM_33',
+        type: 'standard',
+        bbox: {
+          MinX: 288889.7639,
+          MaxX: 804809.936,
+          MinY: 7211211.98,
+          MaxY: 7866186.306
+        }
+      },
+      {
+        ESRI: 25834,
+        EPSG: 25834,
+        SOSI: 24,
+        name: 'EU89, UTM-sone 34',
+        viewable: true,
+        key: 'EU89_UTM_34',
+        type: 'standard',
+        bbox: {
+          MinX: 389363.4613,
+          MaxX: 624301.8048,
+          MinY: 7565200.998,
+          MaxY: 7930309.032
+        }
+      },
+      {
+        ESRI: 25835,
+        EPSG: 25835,
+        SOSI: 25,
+        name: 'EU89, UTM-sone 35',
+        viewable: true,
+        key: 'EU89_UTM_35',
+        type: 'standard',
+        bbox: {
+          MinX: 253177.3653,
+          MaxX: 683621.7167,
+          MinY: 7603094,
+          MaxY: 7924929.221
+        }
+      },
+      {
+        ESRI: 25836,
+        EPSG: 25836,
+        SOSI: 26,
+        name: 'EU89, UTM-sone 36',
+        viewable: true,
+        key: 'EU89_UTM_36',
+        type: 'standard',
+        bbox: {}
+      },
+      {
+        ESRI: 27391,
+        EPSG: 27391,
+        SOSI: 1,
+        name: 'NGO1948, Gauss-K. Akse 1',
+        viewable: false,
+        key: 'NGO1948_GaussK_1',
+        type: 'extended',
+        bbox: {
+          MinX: -368207.9294,
+          MaxX: 172305.8,
+          MinY: -28995.15926,
+          MaxY: 808453.3338
+        }
+      },
+      {
+        ESRI: 27392,
+        EPSG: 27392,
+        SOSI: 2,
+        name: 'NGO1948, Gauss-K. Akse 2',
+        viewable: false,
+        key: 'NGO1948_GaussK_2',
+        type: 'extended',
+        bbox: {
+          MinX: -368207.9294,
+          MaxX: 172305.8,
+          MinY: -28995.15926,
+          MaxY: 808453.3338
+        }
+      },
+      {
+        ESRI: 27393,
+        EPSG: 27393,
+        SOSI: 3,
+        name: 'NGO1948, Gauss-K. Akse 3',
+        viewable: false,
+        key: 'NGO1948_GaussK_3',
+        type: 'extended',
+        bbox: {
+          MinX: -368207.9294,
+          MaxX: 172305.8,
+          MinY: -28995.15926,
+          MaxY: 808453.3338
+        }
+      },
+      {
+        ESRI: 27394,
+        EPSG: 27394,
+        SOSI: 4,
+        name: 'NGO1948, Gauss-K. Akse 4',
+        viewable: false,
+        key: 'NGO1948_GaussK_4',
+        type: 'extended',
+        bbox: {
+          MinX: -368207.9294,
+          MaxX: 172305.8,
+          MinY: -28995.15926,
+          MaxY: 808453.3338
+        }
+      },
+      {
+        ESRI: 27395,
+        EPSG: 27395,
+        SOSI: 5,
+        name: 'NGO1948, Gauss-K. Akse 5',
+        viewable: false,
+        key: 'NGO1948_GaussK_5',
+        type: 'extended',
+        bbox: {
+          MinX: -312424.3471,
+          MaxX: 410629.5171,
+          MinY: 808453.3338,
+          MaxY: 1507978.752
+        }
+      },
+      {
+        ESRI: 27396,
+        EPSG: 27396,
+        SOSI: 6,
+        name: 'NGO1948, Gauss-K. Akse 6',
+        viewable: false,
+        key: 'NGO1948_GaussK_6',
+        type: 'extended',
+        bbox: {
+          MinX: -312424.3471,
+          MaxX: 410629.5171,
+          MinY: 808453.3338,
+          MaxY: 1507978.752
+        }
+      },
+      {
+        ESRI: 27397,
+        EPSG: 27397,
+        SOSI: 7,
+        name: 'NGO1948, Gauss-K. Akse 7',
+        viewable: false,
+        key: 'NGO1948_GaussK_7',
+        type: 'extended',
+        bbox: {
+          MinX: -312424.3471,
+          MaxX: 410629.5171,
+          MinY: 808453.3338,
+          MaxY: 1507978.752
+        }
+      },
+      {
+        ESRI: 27398,
+        EPSG: 27398,
+        SOSI: 8,
+        name: 'NGO1948, Gauss-K. Akse 8',
+        viewable: false,
+        key: 'NGO1948_GaussK_8',
+        type: 'extended',
+        bbox: {
+          MinX: -312424.3471,
+          MaxX: 410629.5171,
+          MinY: 808453.3338,
+          MaxY: 1507978.752
+        }
+      },
+      {
+        ESRI: null,
+        EPSG: 4230,
+        SOSI: 50,
+        name: 'ED50 - Geografisk, grader',
+        viewable: false,
+        key: 'ED50',
+        type: 'extended',
+        bbox: {}
+      },
+      {
+        ESRI: 23031,
+        EPSG: 23031,
+        SOSI: 31,
+        name: 'ED50, UTM-sone 31',
+        viewable: false,
+        key: 'ED50_UTM_31',
+        type: 'extended',
+        bbox: {}
+      },
+      {
+        ESRI: 23032,
+        EPSG: 23032,
+        SOSI: 32,
+        name: 'ED50, UTM-sone 32',
+        viewable: false,
+        key: 'ED50_UTM_32',
+        type: 'extended',
+        bbox: {}
+      },
+      {
+        ESRI: 23033,
+        EPSG: 23033,
+        SOSI: 33,
+        name: 'ED50, UTM-sone 33',
+        viewable: false,
+        key: 'ED50_UTM_33',
+        type: 'extended',
+        bbox: {}
+      },
+      {
+        ESRI: 23034,
+        EPSG: 23034,
+        SOSI: 34,
+        name: 'ED50, UTM-sone 34',
+        viewable: false,
+        key: 'ED50_UTM_34',
+        type: 'extended',
+        bbox: {}
+      },
+      {
+        ESRI: 23035,
+        EPSG: 23035,
+        SOSI: 35,
+        name: 'ED50, UTM-sone 35',
+        viewable: false,
+        key: 'ED50_UTM_35',
+        type: 'extended',
+        bbox: {}
+      },
+      {
+        ESRI: 23036,
+        EPSG: 23036,
+        SOSI: 36,
+        name: 'ED50, UTM-sone 36',
+        viewable: false,
+        key: 'ED50_UTM_36',
+        type: 'extended',
+        bbox: {}
+      }
+    ];
+    this.getSOSIfromEPSG = function (epsg) {
+      return this.sosiCodes.filter(function (el) {
+        return el.EPSG == epsg;
+      }).map(function (obj) {
+        return obj.SOSI;
+      })[0];
+    };
+    this.getCoordinateSystems = function (type) {
+      var result = {};
+      this.sosiCodes.filter(function (el) {
+        return el.type == type;
+      }).filter(Boolean).map(function (obj) {
+        var rObj = {};
+        rObj[obj.SOSI] = obj.key;
+        return rObj;
+      }).forEach(function (element) {
+        for (var i in element) {
+          result[i] = element[i];
+        }
+      });
+      return result;
+    };
+    this.isOutOfBounds = function (coordinates) {
+      return this.sosiCodes.filter(function (el) {
+        return coordinates.north.value < el.bbox.MinX || coordinates.north.value > el.bbox.MaxX || coordinates.east.value < el.bbox.MinY || coordinates.east.value > el.bbox.MaxY;
+      }).map(function (obj) {
+        return obj;
+      });
+    };
+    this.isNotOutOfBounds = function (coordinates) {
+      return this.sosiCodes.filter(function (el) {
+        return coordinates.north.value > el.bbox.MinX && coordinates.north.value < el.bbox.MaxX && coordinates.east.value > el.bbox.MinY && coordinates.east.value < el.bbox.MaxY;
+      }).map(function (obj) {
+        return obj;
+      });
+    };
+    this.generateUrlPrintCapabilities = function (appId) {
+      return 'https://testapi.norgeskart.no/' + 'print/' + appId + '/capabilities.json';
+    };
+    this.generatePrintUrl = function (appId) {
+      return 'https://testapi.norgeskart.no/' + 'print/' + appId + '/report.pdf';
+    };
+    this.generatePrintDownloadUrl = function (downloadUrl) {
+      return 'https://testapi.norgeskart.no' + downloadUrl;
+    };
+    this.generateStatusPrintDownloadUrl = function (statusUrl) {
+      return 'https://testapi.norgeskart.no' + statusUrl;
+    };
+    this.generateCancelPrintUrl = function (refNum) {
+      return 'https://testapi.norgeskart.no/' + 'print/cancel/' + refNum;
+    };
+  }
+]);
